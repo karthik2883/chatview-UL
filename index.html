@@ -1,0 +1,280 @@
+<html>
+
+<head>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            -webkit-box-sizing: border-box;
+        }
+
+        /* The popup chat - hidden by default */
+        .chat-popup {
+            position: fixed;
+            bottom: 0;
+            right: 15px;
+            z-index: 9;
+        }
+
+        body {
+            font-family: Helvetica, Arial, Sans-serif;
+            font-size: 13px;
+            background-color: #fafafa;
+        }
+
+        ::-webkit-scrollbar {
+            width: 20px;
+        }
+
+        /* Track */
+        ::-webkit-scrollbar-track {
+            box-shadow: inset 0 0 5px grey;
+            border-radius: 10px;
+        }
+
+        /* Handle */
+        ::-webkit-scrollbar-thumb {
+            background: red;
+            border-radius: 10px;
+        }
+
+        /* Handle on hover */
+        ::-webkit-scrollbar-thumb:hover {
+            background: #b30000;
+        }
+
+        .container {
+            width: 600px;
+            margin: 10px auto 10px;
+            border-color: steelblue;
+            border-width: 15px;
+            scrollbar-color: dark;
+        }
+
+        .title {
+            font-size: 30px;
+            font-weight: bold;
+            font-family: "Courier New", Monospace;
+            text-shadow: #ccc 2px 2px 1px;
+            padding-bottom: 5px;
+        }
+
+        .chat {
+            border: 1px solid #ccc;
+            height: 400px;
+            overflow-y: scroll;
+            background-color: white;
+            border-radius: 10px 0 0 0;
+        }
+
+        .chat div {
+            margin: 10px 12px 15px;
+            line-height: 20px;
+        }
+
+        .chat .party {
+            font-weight: bold;
+        }
+
+        .chat .you {
+            color: red;
+        }
+
+        .chat .other {
+            color: blue;
+        }
+
+        .chat .text {}
+
+        .busy {
+            position: absolute;
+            padding: 3px 0;
+            color: #666;
+            display: none;
+            font-size: 11px;
+        }
+
+        .input {
+            margin-top: 20px;
+        }
+
+        .input input {
+            vertical-align: top;
+            float: left;
+            border: 1px solid #ccc;
+            padding: 5px;
+            width: 450px;
+            margin: 0;
+            border-radius: 5px;
+        }
+
+        .input a {
+            vertical-align: top;
+            float: right;
+            font-weight: bold;
+            border: 1px solid #ccc;
+            background-color: #efefef;
+            padding: 7px 35px;
+            color: black;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .input a:hover {
+            background-color: #ddd;
+            cursor: pointer;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script>
+        /* ---------- CHAT BOT ENGINE JS ----------- */
+
+        function chatBot() {
+
+            // current user input
+            this.input;
+
+            /**
+             * respondTo
+             * 
+             * return nothing to skip response
+             * return string for one response
+             * return array of strings for multiple responses
+             * 
+             * @param input - input chat string
+             * @return reply of chat-bot
+             */
+            this.respondTo = function (input) {
+
+                this.input = input.toLowerCase();
+
+                if (this.match('(hi|hello|hey|hola|howdy)(\\s|!|\\.|$)'))
+                    return "um... hi?";
+
+                if (this.match('what[^ ]* up') || this.match('sup') || this.match('how are you'))
+                    return "this github thing is pretty cool, huh?";
+
+                if (this.match('l(ol)+') || this.match('(ha)+(h|$)') || this.match('lmao'))
+                    return "what's so funny?";
+
+                if (this.match('^no+(\\s|!|\\.|$)'))
+                    return "don't be such a negative nancy :(";
+
+                if (this.match('(cya|bye|see ya|ttyl|talk to you later)'))
+                    return ["alright, see you around", "good teamwork!"];
+
+                if (this.match('(dumb|stupid|is that all)'))
+                    return ["hey i'm just a proof of concept", "you can make me smarter if you'd like"];
+
+                if (this.input == 'noop')
+                    return;
+
+                return input + " what?";
+            }
+
+            /**
+             * match
+             * 
+             * @param regex - regex string to match
+             * @return boolean - whether or not the input string matches the regex
+             */
+            this.match = function (regex) {
+
+                return new RegExp(regex).test(this.input);
+            }
+        }
+
+        /* ---------- START INDEX JS ----------- */
+
+        $(function () {
+
+            // chat aliases
+            var you = 'You';
+            var robot = 'Chatbot';
+
+            // slow reply by 400 to 800 ms
+            var delayStart = 400;
+            var delayEnd = 800;
+
+            // initialize
+            var bot = new chatBot();
+            var chat = $('.chat');
+            var waiting = 0;
+            $('.busy').text(robot + ' is typing...');
+
+            // submit user input and get chat-bot's reply
+            var submitChat = function () {
+
+                var input = $('.input input').val();
+                if (input == '') return;
+
+                $('.input input').val('');
+                updateChat(you, input);
+
+                var reply = bot.respondTo(input);
+                if (reply == null) return;
+
+                var latency = Math.floor((Math.random() * (delayEnd - delayStart)) + delayStart);
+                $('.busy').css('display', 'block');
+                waiting++;
+                setTimeout(function () {
+                    if (typeof reply === 'string') {
+                        updateChat(robot, reply);
+                    } else {
+                        for (var r in reply) {
+                            updateChat(robot, reply[r]);
+                        }
+                    }
+                    if (--waiting == 0) $('.busy').css('display', 'none');
+                }, latency);
+            }
+
+            // add a new line to the chat
+            var updateChat = function (party, text) {
+
+                var style = 'you';
+                if (party != you) {
+                    style = 'other';
+                }
+
+                var line = $('<div><span class="party"></span> <span class="text"></span></div>');
+                line.find('.party').addClass(style).text(party + ':');
+                line.find('.text').text(text);
+
+                chat.append(line);
+
+                chat.stop().animate({ scrollTop: chat.prop("scrollHeight") });
+
+            }
+
+            // event binding
+            $('.input').bind('keydown', function (e) {
+                if (e.keyCode == 13) {
+                    submitChat();
+                }
+            });
+            $('.input a').bind('click', submitChat);
+
+            // initial chat state
+            updateChat(robot, 'Hi there. Try typing something!');
+
+        });
+    </script>
+</head>
+
+<body>
+    <div class="chat-popup" id="myForm">
+        <div class="container">
+            <div class="chat"></div>
+            <div class="busy"></div>
+            <div class="input">
+                <input type="text" placeholder="Chat with me!" />
+                <a>Send</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+
+</html>
